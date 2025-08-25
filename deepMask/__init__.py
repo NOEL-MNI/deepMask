@@ -1,5 +1,8 @@
 """
-deepMask package initialization.
+deepMask: Accurate Brain Segmentation in Malformations of Cortical Development
+
+A PyTorch implementation using V-net variant of Fully Convolutional Neural Networks
+for brain segmentation in cortical malformations.
 """
 
 try:
@@ -10,3 +13,7 @@ except ImportError:
 __author__ = "Ravnoor Gill, Benoit Caldairou, Neda Bernasconi, Andrea Bernasconi"
 __email__ = "ravnoor.gill@mail.mcgill.ca"
 __license__ = "BSD-3-Clause"
+
+# Import main modules for easy access
+from . import utils
+from . import vnet
