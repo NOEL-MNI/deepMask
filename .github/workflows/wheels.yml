@@ -13,7 +13,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        os: [ubuntu-latest, macos-15]
 
     steps:
     - uses: actions/checkout@v4
@@ -92,7 +92,7 @@ jobs:
 
     - uses: actions/download-artifact@v5
       with:
-        name: wheels-macos-latest
+        name: wheels-macos-14
         path: dist
 
     - uses: actions/download-artifact@v5
