@@ -2,14 +2,14 @@
 
 import os
 import sys
+
 import torch
-import vnet
-
 from mo_dots import Data
-from utils.data import *
-from utils.deepmask import *
-from utils.image_processing import noelImageProcessor
 
+from . import vnet
+from .utils.data import *
+from .utils.deepmask import *
+from .utils.image_processing import noelImageProcessor
 
 # configuration
 args = Data()
@@ -58,3 +58,17 @@ noelImageProcessor(
     model=model,
     preprocess=True,
 ).pipeline()
+
+
+def main():
+    """Main entry point for the deepmask-inference CLI script."""
+    if len(sys.argv) != 5:
+        print("Usage: deepmask-inference <id> <t1_filename> <t2_filename> <output_dir>")
+        sys.exit(1)
+
+    # The main execution logic is already above
+    pass
+
+
+if __name__ == "__main__":
+    main()

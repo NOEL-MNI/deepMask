@@ -1,0 +1,51 @@
+name: Build and Test
+
+on:
+  push:
+    branches: [ main, dev ]
+  pull_request:
+    branches: [ main, dev ]
+
+jobs:
+  test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        python-version: ["3.8", "3.9", "3.10", "3.11"]
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Needed for setuptools-scm
+
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    - name: Install uv
+      uses: astral-sh/setup-uv@v6
+
+    - name: Install dependencies
+      run: |
+        uv sync --dev
+
+    - name: Lint and format check with ruff
+      continue-on-error: true
+      run: |
+        echo "Running ruff linting (non-blocking)..."
+        uv run ruff check deepMask || echo "⚠️ Ruff linting found issues (non-blocking)"
+        echo "Running ruff format check (non-blocking)..."
+        uv run ruff format --check deepMask || echo "⚠️ Ruff formatting issues found (non-blocking)"
+
+    - name: Type check with mypy
+      continue-on-error: true
+      run: |
+        echo "Running mypy type checking (non-blocking)..."
+        uv run mypy deepMask --ignore-missing-imports || echo "⚠️ Mypy found type issues (non-blocking)"
+
+    - name: Test with pytest (unit tests only)
+      run: |
+        uv run pytest tests/ --cov=deepMask --cov-report=xml -m "not integration"
+
