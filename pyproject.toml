@@ -33,8 +33,6 @@ classifiers = [
 ]
 requires-python = ">=3.8,<3.12"
 dependencies = [
-    "torch==1.8.2",
-    "torchvision==0.9.2", 
     "antspyx>=0.4.0,<0.5.0",
     "nibabel>=3.0.0",
     "numpy>=1.21.3; python_version<'3.11'",
@@ -51,6 +49,10 @@ dependencies = [
 dynamic = ["version"]
 
 [project.optional-dependencies]
+cpu = [
+    "torch==1.8.2",
+    "torchvision==0.9.2",
+]
 dev = [
     "pytest>=6.0",
     "pytest-cov",
@@ -77,8 +79,8 @@ antspynet = [
 ]
 cuda = [
     # CUDA 11.1 wheels from PyTorch LTS
-    "torch==1.8.2+cu111",
-    "torchvision==0.9.2+cu111",
+    "torch==1.8.2",
+    "torchvision==0.9.2",
 ]
 
 [project.urls]
@@ -129,25 +131,40 @@ dev-dependencies = [
     "twine",
 ]
 
+# Define conflicts between PyTorch backends
+conflicts = [
+    [
+        { extra = "cpu" },
+        { extra = "cuda" },
+    ],
+]
+
 # uv workspace configuration
 [tool.uv.workspace]
 members = ["."]
 
-# uv pip configuration
-[tool.uv.pip]
-index-strategy = "unsafe-best-match"
-extra-index-url = ["https://download.pytorch.org/whl/lts/1.8/cpu"]
+# Define the PyTorch indexes
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/lts/1.8/cpu"
+explicit = true
+
+[[tool.uv.index]]
+name = "pytorch-cuda"
+url = "https://download.pytorch.org/whl/lts/1.8/cu111"
+explicit = true
 
 # uv sources for dependency resolution
 [tool.uv.sources]
-# Configure CUDA packages to use CUDA index when cuda extra is requested
-torch = { index = "pytorch-cuda", marker = "extra == 'cuda'" }
-torchvision = { index = "pytorch-cuda", marker = "extra == 'cuda'" }
-
-# Define the PyTorch indexes
-[[tool.uv.index]]
-name = "pytorch-cuda"
-url = "https://download.pytorch.org/whl/lts/1.8/cu111/"
+# Pin torch versions to appropriate indexes based on selected extra
+torch = [
+    { index = "pytorch-cpu", extra = "cpu" },
+    { index = "pytorch-cuda", extra = "cuda" },
+]
+torchvision = [
+    { index = "pytorch-cpu", extra = "cpu" },
+    { index = "pytorch-cuda", extra = "cuda" },
+]
 
 # Ruff configuration
 [tool.ruff]
