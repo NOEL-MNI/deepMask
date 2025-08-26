@@ -69,23 +69,30 @@ jobs:
     - name: Run deepMask inference
       timeout-minutes: 15  # Inference should complete within 15 minutes
       run: |
-        # Run deepMask inference
+        export TMPDIR=test_output
+        mkdir -p ${TMPDIR}/sub-00055
+        
+        # Copy input files to output directory as expected by deepMask
+        cp test_data/sub-00055/t1.nii.gz ${TMPDIR}/sub-00055/
+        cp test_data/sub-00055/flair.nii.gz ${TMPDIR}/sub-00055/
+        
+        # Run deepMask inference with just filenames (not full paths)
         uv run deepmask-inference sub-00055 \
-          test_data/sub-00055/t1.nii.gz \
-          test_data/sub-00055/flair.nii.gz \
-          .
+          t1.nii.gz \
+          flair.nii.gz \
+          ${TMPDIR}
         
         # Verify key output files were created
-        ls -la ./sub-00055/
+        ls -la ${TMPDIR}/sub-00055/
       env:
         CI_TESTING_PATIENT_ID: "sub-00055"
-        CI_TESTING_PRED_DIR: "test_data"
+        CI_TESTING_PRED_DIR: "test_output"
 
     - name: Upload inference outputs
       uses: actions/upload-artifact@v4
       with:
         name: inference-outputs
-        path: test_data/
+        path: test_output/
         retention-days: 1
 
   run-integration-tests:
@@ -105,16 +112,22 @@ jobs:
       run: |
         uv sync --python 3.8 --dev --extra cpu
 
-    - name: Download test data and inference outputs
+    - name: Download test data
+      uses: actions/download-artifact@v4
+      with:
+        name: test-data
+        path: test_data/
+
+    - name: Download inference outputs
       uses: actions/download-artifact@v4
       with:
         name: inference-outputs
-        path: test_data/
+        path: test_output/
 
     - name: Run integration tests
       run: |
         uv run pytest tests/test_integration.py -v -s
       env:
         CI_TESTING_PATIENT_ID: "sub-00055"
-        CI_TESTING_PRED_DIR: "test_data"
+        CI_TESTING_PRED_DIR: "test_output"
         CI_TESTING_REF_DIR: "tests/reference_data"
