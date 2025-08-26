@@ -24,8 +24,7 @@ jobs:
       run: |
         # Build pure Python wheel (universal)
         uv sync --dev --extra cpu
-        uv pip install build
-        python -m build --wheel
+        uv build --wheel
 
     - uses: actions/upload-artifact@v4
       with:
@@ -43,14 +42,10 @@ jobs:
     - name: Install uv
       uses: astral-sh/setup-uv@v6
 
-    - name: Install build dependencies
-      run: |
-        uv sync --dev --extra cpu
-        uv pip install build
-
     - name: Build sdist
       run: |
-        python -m build --sdist
+        uv sync --dev --extra cpu
+        uv build --sdist
 
     - uses: actions/upload-artifact@v4
       with:
