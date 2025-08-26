@@ -15,6 +15,9 @@ jobs:
   run-inference:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    strategy:
+      matrix:
+        python-version: ["3.8", "3.9", "3.10", "3.11"]
     
     steps:
     - uses: actions/checkout@v4
@@ -26,7 +29,7 @@ jobs:
 
     - name: Install dependencies
       run: |
-        uv sync --python 3.8 --dev --extra cpu
+        uv sync --python ${{ matrix.python-version }} --dev --extra cpu
 
     - name: Download test data
       run: |
@@ -65,7 +68,7 @@ jobs:
     - name: Upload inference outputs
       uses: actions/upload-artifact@v4
       with:
-        name: inference-outputs
+        name: inference-outputs-py${{ matrix.python-version }}
         path: test_output/
         retention-days: 1
 
@@ -73,6 +76,9 @@ jobs:
     needs: run-inference
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    strategy:
+      matrix:
+        python-version: ["3.8", "3.9", "3.10", "3.11"]
     
     steps:
     - uses: actions/checkout@v4
@@ -84,12 +90,12 @@ jobs:
 
     - name: Install dependencies
       run: |
-        uv sync --python 3.8 --dev --extra cpu
+        uv sync --python ${{ matrix.python-version }} --dev --extra cpu
 
     - name: Download inference outputs
       uses: actions/download-artifact@v4
       with:
-        name: inference-outputs
+        name: inference-outputs-py${{ matrix.python-version }}
         path: test_output/
 
     - name: Run integration tests
