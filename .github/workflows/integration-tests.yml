@@ -69,17 +69,14 @@ jobs:
     - name: Run deepMask inference
       timeout-minutes: 15  # Inference should complete within 15 minutes
       run: |
-        export TMPDIR=test_data
-        mkdir -p ${TMPDIR}
-        
         # Run deepMask inference
         uv run deepmask-inference sub-00055 \
           test_data/sub-00055/t1.nii.gz \
           test_data/sub-00055/flair.nii.gz \
-          ${TMPDIR}
+          .
         
         # Verify key output files were created
-        ls -la ${TMPDIR}/sub-00055/
+        ls -la ./sub-00055/
       env:
         CI_TESTING_PATIENT_ID: "sub-00055"
         CI_TESTING_PRED_DIR: "test_data"
