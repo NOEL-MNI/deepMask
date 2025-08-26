@@ -1,0 +1,85 @@
+name: Integration Tests
+
+on:
+  push:
+    branches: [ main, dev ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+env:
+  CI_TESTING: true
+  CI_TESTING_PATIENT_ID: "sub-00055"
+
+jobs:
+  integration-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30  # Set timeout for the entire job
+    
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Needed for setuptools-scm
+
+    - name: Install uv
+      uses: astral-sh/setup-uv@v3
+
+    - name: Install dependencies
+      run: |
+        uv sync
+        uv pip install .
+
+    - name: Download test data
+      run: |
+        PATIENT_ID=sub-00055
+        BASE_URL=https://s3.amazonaws.com/openneuro.org/ds004199/${PATIENT_ID}/anat
+        mkdir -p $HOME/test_data/${PATIENT_ID}
+        echo "Downloading test dataset..."
+        
+        # Download T1 image
+        curl -L "${BASE_URL}/${PATIENT_ID}_acq-sag111_T1w.nii.gz?versionId=IKGWDiLR7B7ls2yPVyycJo.6R1Sqhujf" \
+          -o $HOME/test_data/${PATIENT_ID}/t1.nii.gz
+        
+        # Download FLAIR image  
+        curl -L "${BASE_URL}/${PATIENT_ID}_acq-tse3dvfl_FLAIR.nii.gz?versionId=HmzYoUuYkdbyd8jkpdJjVkZydRHNSqUX" \
+          -o $HOME/test_data/${PATIENT_ID}/flair.nii.gz
+        
+        # Download ground truth label
+        curl -L "${BASE_URL}/${PATIENT_ID}_acq-tse3dvfl_FLAIR_roi.nii.gz?versionId=ulmEU3nb8WCvGwcwTbkcdNSVr07PMPQN" \
+          -o $HOME/test_data/${PATIENT_ID}/label.nii.gz
+
+    - name: Run deepMask inference
+      timeout-minutes: 15  # Inference should complete within 15 minutes
+      run: |
+        export TMPDIR=$HOME/test_output
+        mkdir -p ${TMPDIR}
+        
+        # Run deepMask inference
+        uv run deepmask-inference sub-00055 \
+          $HOME/test_data/sub-00055/t1.nii.gz \
+          $HOME/test_data/sub-00055/flair.nii.gz \
+          ${TMPDIR}
+        
+        # Verify key output files were created
+        ls -la ${TMPDIR}/sub-00055/
+      env:
+        CI_TESTING_PATIENT_ID: "sub-00055"
+        CI_TESTING_PRED_DIR: "$HOME/test_output"
+
+    - name: Run integration tests
+      run: |
+        uv run pytest tests/test_integration.py -v -s
+      env:
+        CI_TESTING_PATIENT_ID: "sub-00055"
+        CI_TESTING_PRED_DIR: "$HOME/test_output"
+        CI_TESTING_REF_DIR: "tests/reference_data"
+
+    - name: Upload test artifacts
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: integration-test-outputs
+        path: |
+          $HOME/test_output/
+          tests/reference_data/
+        retention-days: 7
