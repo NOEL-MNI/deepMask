@@ -12,39 +12,7 @@ env:
   CI_TESTING_PATIENT_ID: "sub-00055"
 
 jobs:
-  prepare-data:
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    
-    steps:
-    - uses: actions/checkout@v4
-      with:
-        fetch-depth: 0
-
-    - name: Download test data
-      run: |
-        PATIENT_ID=sub-00055
-        BASE_URL=https://s3.amazonaws.com/openneuro.org/ds004199/${PATIENT_ID}/anat
-        mkdir -p test_data/${PATIENT_ID}
-        echo "Downloading test dataset..."
-        
-        # Download T1 image
-        curl -L "${BASE_URL}/${PATIENT_ID}_acq-sag111_T1w.nii.gz?versionId=IKGWDiLR7B7ls2yPVyycJo.6R1Sqhujf" \
-          -o test_data/${PATIENT_ID}/t1.nii.gz
-        
-        # Download FLAIR image  
-        curl -L "${BASE_URL}/${PATIENT_ID}_acq-tse3dvfl_FLAIR.nii.gz?versionId=HmzYoUuYkdbyd8jkpdJjVkZydRHNSqUX" \
-          -o test_data/${PATIENT_ID}/flair.nii.gz
-
-    - name: Upload test data
-      uses: actions/upload-artifact@v4
-      with:
-        name: test-data
-        path: test_data/
-        retention-days: 1
-
   run-inference:
-    needs: prepare-data
     runs-on: ubuntu-latest
     timeout-minutes: 20
     
@@ -61,20 +29,26 @@ jobs:
         uv sync --python 3.8 --dev --extra cpu
 
     - name: Download test data
-      uses: actions/download-artifact@v4
-      with:
-        name: test-data
-        path: test_data/
+      run: |
+        export TMPDIR=test_output
+        PATIENT_ID=sub-00055
+        BASE_URL=https://s3.amazonaws.com/openneuro.org/ds004199/${PATIENT_ID}/anat
+        mkdir -p ${TMPDIR}/${PATIENT_ID}
+        echo "Downloading test dataset..."
+        
+        # Download T1 image
+        curl -L "${BASE_URL}/${PATIENT_ID}_acq-sag111_T1w.nii.gz?versionId=IKGWDiLR7B7ls2yPVyycJo.6R1Sqhujf" \
+          -o ${TMPDIR}/${PATIENT_ID}/t1.nii.gz
+        
+        # Download FLAIR image  
+        curl -L "${BASE_URL}/${PATIENT_ID}_acq-tse3dvfl_FLAIR.nii.gz?versionId=HmzYoUuYkdbyd8jkpdJjVkZydRHNSqUX" \
+          -o ${TMPDIR}/${PATIENT_ID}/flair.nii.gz
 
     - name: Run deepMask inference
       timeout-minutes: 15  # Inference should complete within 15 minutes
       run: |
         export TMPDIR=test_output
         mkdir -p ${TMPDIR}/sub-00055
-        
-        # Copy input files to output directory as expected by deepMask
-        cp test_data/sub-00055/t1.nii.gz ${TMPDIR}/sub-00055/
-        cp test_data/sub-00055/flair.nii.gz ${TMPDIR}/sub-00055/
         
         # Run deepMask inference with just filenames (not full paths)
         uv run deepmask-inference sub-00055 \
@@ -96,7 +70,7 @@ jobs:
         retention-days: 1
 
   run-integration-tests:
-    needs: [prepare-data, run-inference]
+    needs: run-inference
     runs-on: ubuntu-latest
     timeout-minutes: 15
     
@@ -111,12 +85,6 @@ jobs:
     - name: Install dependencies
       run: |
         uv sync --python 3.8 --dev --extra cpu
-
-    - name: Download test data
-      uses: actions/download-artifact@v4
-      with:
-        name: test-data
-        path: test_data/
 
     - name: Download inference outputs
       uses: actions/download-artifact@v4
