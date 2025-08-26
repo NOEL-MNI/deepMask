@@ -42,10 +42,6 @@ jobs:
         # Download FLAIR image  
         curl -L "${BASE_URL}/${PATIENT_ID}_acq-tse3dvfl_FLAIR.nii.gz?versionId=HmzYoUuYkdbyd8jkpdJjVkZydRHNSqUX" \
           -o $HOME/test_data/${PATIENT_ID}/flair.nii.gz
-        
-        # Download ground truth label
-        curl -L "${BASE_URL}/${PATIENT_ID}_acq-tse3dvfl_FLAIR_roi.nii.gz?versionId=ulmEU3nb8WCvGwcwTbkcdNSVr07PMPQN" \
-          -o $HOME/test_data/${PATIENT_ID}/label.nii.gz
 
     - name: Run deepMask inference
       timeout-minutes: 15  # Inference should complete within 15 minutes
@@ -80,5 +76,4 @@ jobs:
         name: integration-test-outputs
         path: |
           $HOME/test_output/
-          tests/reference_data/
         retention-days: 7
