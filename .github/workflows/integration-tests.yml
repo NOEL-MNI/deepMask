@@ -25,22 +25,22 @@ jobs:
       run: |
         PATIENT_ID=sub-00055
         BASE_URL=https://s3.amazonaws.com/openneuro.org/ds004199/${PATIENT_ID}/anat
-        mkdir -p $HOME/test_data/${PATIENT_ID}
+        mkdir -p test_data/${PATIENT_ID}
         echo "Downloading test dataset..."
         
         # Download T1 image
         curl -L "${BASE_URL}/${PATIENT_ID}_acq-sag111_T1w.nii.gz?versionId=IKGWDiLR7B7ls2yPVyycJo.6R1Sqhujf" \
-          -o $HOME/test_data/${PATIENT_ID}/t1.nii.gz
+          -o test_data/${PATIENT_ID}/t1.nii.gz
         
         # Download FLAIR image  
         curl -L "${BASE_URL}/${PATIENT_ID}_acq-tse3dvfl_FLAIR.nii.gz?versionId=HmzYoUuYkdbyd8jkpdJjVkZydRHNSqUX" \
-          -o $HOME/test_data/${PATIENT_ID}/flair.nii.gz
+          -o test_data/${PATIENT_ID}/flair.nii.gz
 
     - name: Upload test data
       uses: actions/upload-artifact@v4
       with:
         name: test-data
-        path: $HOME/test_data/
+        path: test_data/
         retention-days: 1
 
   run-inference:
@@ -64,31 +64,31 @@ jobs:
       uses: actions/download-artifact@v4
       with:
         name: test-data
-        path: $HOME/test_data/
+        path: test_data/
 
     - name: Run deepMask inference
       timeout-minutes: 15  # Inference should complete within 15 minutes
       run: |
-        export TMPDIR=$HOME/test_output
+        export TMPDIR=test_output
         mkdir -p ${TMPDIR}
         
         # Run deepMask inference
         uv run deepmask-inference sub-00055 \
-          $HOME/test_data/sub-00055/t1.nii.gz \
-          $HOME/test_data/sub-00055/flair.nii.gz \
+          test_data/sub-00055/t1.nii.gz \
+          test_data/sub-00055/flair.nii.gz \
           ${TMPDIR}
         
         # Verify key output files were created
         ls -la ${TMPDIR}/sub-00055/
       env:
         CI_TESTING_PATIENT_ID: "sub-00055"
-        CI_TESTING_PRED_DIR: "$HOME/test_output"
+        CI_TESTING_PRED_DIR: "test_output"
 
     - name: Upload inference outputs
       uses: actions/upload-artifact@v4
       with:
         name: inference-outputs
-        path: $HOME/test_output/
+        path: test_output/
         retention-days: 1
 
   run-integration-tests:
@@ -112,18 +112,18 @@ jobs:
       uses: actions/download-artifact@v4
       with:
         name: test-data
-        path: $HOME/test_data/
+        path: test_data/
 
     - name: Download inference outputs
       uses: actions/download-artifact@v4
       with:
         name: inference-outputs
-        path: $HOME/test_output/
+        path: test_output/
 
     - name: Run integration tests
       run: |
         uv run pytest tests/test_integration.py -v -s
       env:
         CI_TESTING_PATIENT_ID: "sub-00055"
-        CI_TESTING_PRED_DIR: "$HOME/test_output"
+        CI_TESTING_PRED_DIR: "test_output"
         CI_TESTING_REF_DIR: "tests/reference_data"
