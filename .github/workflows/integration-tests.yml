@@ -26,8 +26,7 @@ jobs:
 
     - name: Install dependencies
       run: |
-        uv sync
-        uv pip install .
+        uv sync --python 3.8 --extra cpu
 
     - name: Download test data
       run: |
