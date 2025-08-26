@@ -69,7 +69,7 @@ jobs:
     - name: Run deepMask inference
       timeout-minutes: 15  # Inference should complete within 15 minutes
       run: |
-        export TMPDIR=test_output
+        export TMPDIR=test_data
         mkdir -p ${TMPDIR}
         
         # Run deepMask inference
@@ -82,13 +82,13 @@ jobs:
         ls -la ${TMPDIR}/sub-00055/
       env:
         CI_TESTING_PATIENT_ID: "sub-00055"
-        CI_TESTING_PRED_DIR: "test_output"
+        CI_TESTING_PRED_DIR: "test_data"
 
     - name: Upload inference outputs
       uses: actions/upload-artifact@v4
       with:
         name: inference-outputs
-        path: test_output/
+        path: test_data/
         retention-days: 1
 
   run-integration-tests:
@@ -108,22 +108,16 @@ jobs:
       run: |
         uv sync --python 3.8 --dev --extra cpu
 
-    - name: Download test data
-      uses: actions/download-artifact@v4
-      with:
-        name: test-data
-        path: test_data/
-
-    - name: Download inference outputs
+    - name: Download test data and inference outputs
       uses: actions/download-artifact@v4
       with:
         name: inference-outputs
-        path: test_output/
+        path: test_data/
 
     - name: Run integration tests
       run: |
         uv run pytest tests/test_integration.py -v -s
       env:
         CI_TESTING_PATIENT_ID: "sub-00055"
-        CI_TESTING_PRED_DIR: "test_output"
+        CI_TESTING_PRED_DIR: "test_data"
         CI_TESTING_REF_DIR: "tests/reference_data"
