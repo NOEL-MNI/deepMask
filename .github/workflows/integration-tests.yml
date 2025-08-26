@@ -12,21 +12,14 @@ env:
   CI_TESTING_PATIENT_ID: "sub-00055"
 
 jobs:
-  integration-test:
+  prepare-data:
     runs-on: ubuntu-latest
-    timeout-minutes: 30  # Set timeout for the entire job
+    timeout-minutes: 10
     
     steps:
     - uses: actions/checkout@v4
       with:
-        fetch-depth: 0  # Needed for setuptools-scm
-
-    - name: Install uv
-      uses: astral-sh/setup-uv@v6
-
-    - name: Install dependencies
-      run: |
-        uv sync --python 3.8 --dev --extra cpu
+        fetch-depth: 0
 
     - name: Download test data
       run: |
@@ -42,6 +35,36 @@ jobs:
         # Download FLAIR image  
         curl -L "${BASE_URL}/${PATIENT_ID}_acq-tse3dvfl_FLAIR.nii.gz?versionId=HmzYoUuYkdbyd8jkpdJjVkZydRHNSqUX" \
           -o $HOME/test_data/${PATIENT_ID}/flair.nii.gz
+
+    - name: Upload test data
+      uses: actions/upload-artifact@v4
+      with:
+        name: test-data
+        path: $HOME/test_data/
+        retention-days: 1
+
+  run-inference:
+    needs: prepare-data
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Install uv
+      uses: astral-sh/setup-uv@v6
+
+    - name: Install dependencies
+      run: |
+        uv sync --python 3.8 --dev --extra cpu
+
+    - name: Download test data
+      uses: actions/download-artifact@v4
+      with:
+        name: test-data
+        path: $HOME/test_data/
 
     - name: Run deepMask inference
       timeout-minutes: 15  # Inference should complete within 15 minutes
@@ -61,6 +84,42 @@ jobs:
         CI_TESTING_PATIENT_ID: "sub-00055"
         CI_TESTING_PRED_DIR: "$HOME/test_output"
 
+    - name: Upload inference outputs
+      uses: actions/upload-artifact@v4
+      with:
+        name: inference-outputs
+        path: $HOME/test_output/
+        retention-days: 1
+
+  run-integration-tests:
+    needs: [prepare-data, run-inference]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Install uv
+      uses: astral-sh/setup-uv@v6
+
+    - name: Install dependencies
+      run: |
+        uv sync --python 3.8 --dev --extra cpu
+
+    - name: Download test data
+      uses: actions/download-artifact@v4
+      with:
+        name: test-data
+        path: $HOME/test_data/
+
+    - name: Download inference outputs
+      uses: actions/download-artifact@v4
+      with:
+        name: inference-outputs
+        path: $HOME/test_output/
+
     - name: Run integration tests
       run: |
         uv run pytest tests/test_integration.py -v -s
@@ -68,12 +127,3 @@ jobs:
         CI_TESTING_PATIENT_ID: "sub-00055"
         CI_TESTING_PRED_DIR: "$HOME/test_output"
         CI_TESTING_REF_DIR: "tests/reference_data"
-
-    - name: Upload test artifacts
-      if: always()
-      uses: actions/upload-artifact@v4
-      with:
-        name: integration-test-outputs
-        path: |
-          $HOME/test_output/
-        retention-days: 7
