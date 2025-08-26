@@ -50,8 +50,8 @@ dynamic = ["version"]
 
 [project.optional-dependencies]
 cpu = [
-    "torch==1.8.2",
-    "torchvision==0.9.2",
+    "torch>=1.8.2,<2.5.0",
+    "torchvision>=0.9.2,<0.20.0",
 ]
 dev = [
     "pytest>=6.0",
@@ -78,9 +78,8 @@ antspynet = [
     "tensorflow>=2.4.0,<2.8.0",
 ]
 cuda = [
-    # CUDA 11.1 wheels from PyTorch LTS
-    "torch==1.8.2",
-    "torchvision==0.9.2",
+    "torch>=1.8.2,<2.5.0",
+    "torchvision>=0.9.2,<0.20.0",
 ]
 
 [project.urls]
@@ -146,12 +145,12 @@ members = ["."]
 # Define the PyTorch indexes
 [[tool.uv.index]]
 name = "pytorch-cpu"
-url = "https://download.pytorch.org/whl/lts/1.8/cpu"
+url = "https://download.pytorch.org/whl/cpu"
 explicit = true
 
 [[tool.uv.index]]
 name = "pytorch-cuda"
-url = "https://download.pytorch.org/whl/lts/1.8/cu111"
+url = "https://download.pytorch.org/whl/cu124"
 explicit = true
 
 # uv sources for dependency resolution
