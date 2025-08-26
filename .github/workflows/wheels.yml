@@ -9,48 +9,28 @@ on:
 
 jobs:
   build_wheels:
-    name: Build wheels on ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu-latest, macos-15]
+    name: Build pure Python wheel
+    runs-on: ubuntu-latest
 
     steps:
     - uses: actions/checkout@v4
       with:
         fetch-depth: 0  # Needed for setuptools-scm
 
-    - name: Build wheels
-      uses: pypa/cibuildwheel@v2.21.3
-      env:
-        # Configure cibuildwheel to build native archs ('auto'), and some
-        # emulated ones
-        CIBW_ARCHS_LINUX: auto aarch64
-        CIBW_ARCHS_MACOS: x86_64 arm64
-        
-        # Skip 32-bit builds and PyPy builds
-        CIBW_SKIP: "*-manylinux_i686 pp*"
-        
-        # Only build for Python 3.8+ (3.7 deprecated)
-        CIBW_BUILD: "cp38-* cp39-* cp310-* cp311-*"
-        
-        # Install test dependencies and run tests
-        CIBW_TEST_REQUIRES: pytest pytest-cov
-        CIBW_TEST_COMMAND: "python -m pytest {project}/tests -v || true"
-        
-        # Use uv for faster builds
-        CIBW_DEPENDENCY_VERSIONS: latest
-        
-        # Environment variables for build
-        CIBW_ENVIRONMENT_LINUX: >
-          PYTHONDONTWRITEBYTECODE=1
-        CIBW_ENVIRONMENT_MACOS: >
-          PYTHONDONTWRITEBYTECODE=1
+    - name: Install uv
+      uses: astral-sh/setup-uv@v6
+
+    - name: Build wheel
+      run: |
+        # Build pure Python wheel (universal)
+        uv sync --dev --extra cpu
+        uv pip install build
+        python -m build --wheel
 
     - uses: actions/upload-artifact@v4
       with:
-        name: wheels-${{ matrix.os }}
-        path: ./wheelhouse/*.whl
+        name: wheels
+        path: ./dist/*.whl
 
   build_sdist:
     name: Build source distribution
@@ -65,8 +45,8 @@ jobs:
 
     - name: Install build dependencies
       run: |
-        uv sync --python 3.8 --dev --extra cpu
-        uv pip install --system build
+        uv sync --dev --extra cpu
+        uv pip install build
 
     - name: Build sdist
       run: |
@@ -88,12 +68,7 @@ jobs:
     steps:
     - uses: actions/download-artifact@v5
       with:
-        name: wheels-ubuntu-latest
-        path: dist
-
-    - uses: actions/download-artifact@v5
-      with:
-        name: wheels-macos-15
+        name: wheels
         path: dist
 
     - uses: actions/download-artifact@v5
