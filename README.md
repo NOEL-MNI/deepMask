@@ -4,9 +4,9 @@
 
 <p align="center">
       <a href="https://www.python.org/">
-        <img src="https://img.shields.io/badge/Python-3.8+-ff69b4.svg" /></a>
+        <img src="https://img.shields.io/badge/Python-3.8--3.11-ff69b4.svg" /></a>
       <a href= "https://pytorch.org/">
-        <img src="https://img.shields.io/badge/PyTorch-1.8%20LTS-2BAF2B.svg" /></a>
+        <img src="https://img.shields.io/badge/PyTorch-1.8--2.4-2BAF2B.svg" /></a>
       <a href= "https://github.com/NOEL-MNI/deepMask/blob/main/LICENSE">
         <img src="https://img.shields.io/badge/License-BSD%203--Clause-blue.svg" /></a>
       <a href="https://doi.org/10.5281/zenodo.4521706">
@@ -42,14 +42,14 @@ Milletari, F., Navab, N., & Ahmadi, S. A. (2016, October). [V-net: Fully convolu
 
 ## Installation
 
-### Using pip (recommended)
-```bash
-pip install deepmask
-```
-
-### Using uv (fastest)
+### Using uv (recommended)
 ```bash
 uv add deepmask
+```
+
+### Using pip
+```bash
+pip install deepmask
 ```
 
 ### Development Installation
@@ -63,12 +63,12 @@ uv sync --dev
 ```bash
 git clone https://github.com/NOEL-MNI/deepMask.git
 cd deepMask
-conda create -n deepMask python=3.8
+conda create -n deepMask python=3.11
 conda activate deepMask
 pip install -e .
 ```
 
-### GPU Installation (CUDA 11.1)
+### GPU Installation (CUDA)
 For faster inference with CUDA support:
 
 ```bash
@@ -76,17 +76,17 @@ For faster inference with CUDA support:
 make install-cuda
 
 # Using uv directly (uses configured sources)
-uv pip install -e ".[cuda]"
+uv sync --extra cuda
 
 # Using pip (manual index specification)
-pip install -e ".[cuda]" --extra-index-url https://download.pytorch.org/whl/lts/1.8/cu111/
+uv pip install -e ".[cuda]" --extra-index-url https://download.pytorch.org/whl/cu124/
 ```
 
 **Requirements:**
-- NVIDIA GPU with CUDA 11.1 support
-- NVIDIA drivers compatible with CUDA 11.1
+- NVIDIA GPU with CUDA support
+- Compatible NVIDIA drivers
 
-**Note:** The package sources are configured in `pyproject.toml` to automatically use the correct PyTorch wheels based on the installation option.
+**Note:** The package sources are configured in `pyproject.toml` to automatically use the correct PyTorch wheels. CPU PyTorch is installed by default, with CUDA available as an optional extra.
 
 ## Usage
 
@@ -132,17 +132,14 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 # Clone and setup
 git clone https://github.com/NOEL-MNI/deepMask.git
 cd deepMask
-uv sync --dev
+uv sync --dev --extra cpu
 uv run pre-commit install
 
-# Run tests
-make test
+# Run tests across all supported Python versions
+make test-all
 
 # Run integration tests (validates brain mask outputs against reference)
 make test-integration
-
-# Run all tests including integration tests
-make test-all
 
 # Format code
 make format
@@ -151,12 +148,21 @@ make format
 make build
 ```
 
+### Modern Development Features
+
+- **UV Package Manager**: Fast, reliable dependency management with lock files
+- **Matrix Testing**: Automated testing across Python 3.8-3.11
+- **Optimized CI/CD**: GitHub Actions with intelligent caching and artifact sharing
+- **Pure Python Wheels**: Universal wheel building for cross-platform compatibility
+- **Pre-commit Hooks**: Automated code formatting and linting
+
 ### Testing
 
-The project includes both unit tests and integration tests:
+The project includes comprehensive testing across Python 3.8-3.11:
 
-- **Unit tests**: Fast tests that validate individual components
-- **Integration tests**: End-to-end tests that validate brain mask outputs against reference data from deepFCD
+- **Unit tests**: Fast tests that validate individual components  
+- **Integration tests**: End-to-end tests with matrix testing across Python versions
+- **CI/CD**: Automated testing with GitHub Actions and optimized caching
 
 ```bash
 # Run only unit tests (default)
@@ -170,23 +176,31 @@ make test-all
 
 # Run integration tests manually with script
 ./run_integration_tests.sh
+
+# Test specific Python version
+make test-py311
+make test-py310
+make test-py39
+make test-py38
 ```
 
 **Integration Test Details:**
+- Matrix testing across Python 3.8, 3.9, 3.10, and 3.11
 - Downloads test data from OpenNeuro dataset (sub-00055)
 - Downloads reference brain mask from deepFCD validation data
 - Runs deepMask inference on test subject
 - Validates brain mask overlap metrics (Dice > 0.85, Jaccard > 0.75)
 - Ensures anatomical consistency and proper segmentation quality
+- Artifact sharing between jobs for efficient CI execution
 
 ## Requirements
-- Python >= 3.8
-- PyTorch >= 1.8.0
+- Python 3.8, 3.9, 3.10, or 3.11
+- PyTorch >= 1.8, <2.5.0 (CPU by default, CUDA optional)
 - ANTsPy >= 0.4.0
-- ANTsPyNet >= 0.2.0
+- ANTsPyNet >= 0.2.0 (optional, for additional features)
 
 ## License
 <a href= "https://opensource.org/licenses/BSD-3-Clause"><img src="https://img.shields.io/badge/License-BSD%203--Clause-blue.svg" /></a>
 ```console
-Copyright 2021 Neuroimaging of Epilepsy Laboratory, McGill University
+Copyright 2025 Neuroimaging of Epilepsy Laboratory, McGill University
 ```
