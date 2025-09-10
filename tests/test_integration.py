@@ -201,8 +201,8 @@ class TestDeepMaskOutputs:
 
         expected_files = [
             f"{patient_id}_brain_mask_final.nii.gz",
-            f"{patient_id}_t1_brain_final.nii.gz",
-            f"{patient_id}_t2_brain_final.nii.gz",
+            f"{patient_id}_space-MNI152_T1w_brain_final.nii.gz",
+            f"{patient_id}_space-MNI152_FLAIR_brain_final.nii.gz",
         ]
 
         for filename in expected_files:
@@ -218,9 +218,8 @@ class TestDeepMaskOutputs:
         pred_dir = (
             test_config["pred_dir"] / patient_id
         )  # Output is in subject subdirectory
-
         # Test T1 skull-stripped image
-        t1_stripped = pred_dir / f"{patient_id}_t1_brain_final.nii.gz"
+        t1_stripped = pred_dir / f"{patient_id}_space-MNI152_T1w_brain_final.nii.gz"
         if t1_stripped.exists():
             img = ants.image_read(str(t1_stripped))
 
@@ -233,7 +232,9 @@ class TestDeepMaskOutputs:
             assert img_data.max() > img_data.min(), "No intensity variation"
 
         # Test FLAIR skull-stripped image
-        flair_stripped = pred_dir / f"{patient_id}_t2_brain_final.nii.gz"
+        flair_stripped = (
+            pred_dir / f"{patient_id}_space-MNI152_FLAIR_brain_final.nii.gz"
+        )
         if flair_stripped.exists():
             img = ants.image_read(str(flair_stripped))
 
