@@ -15,8 +15,8 @@ if os.environ.get("BRAIN_MASKING") == "cpu":
     from antspynet.utilities import brain_extraction
 from matplotlib.backends.backend_pdf import PdfPages
 
-from .deepmask import *
-from .helpers import *
+from .deepmask import deepMask
+from .helpers import apply_transform, random_case_id
 
 # Import BIDS metadata utilities (try relative, package, and legacy locations)
 try:
@@ -76,7 +76,7 @@ class noelImageProcessor:
         id,
         t1=None,
         t2=None,
-        output_suffix="_space-MNI152_brain.nii.gz",
+        output_suffix="_brain.nii.gz",
         output_dir=None,
         template=None,
         transform="Affine",
@@ -86,7 +86,7 @@ class noelImageProcessor:
         QC=None,
         preprocess=True,
     ):
-        super(noelImageProcessor, self).__init__()
+        super().__init__()
         self._id = id
         self._t1file = t1
         self._t2file = t2
@@ -106,11 +106,11 @@ class noelImageProcessor:
         logger.info("loading nifti files")
         print("loading nifti files")
         self._mni = self._template
-        if self._t1file == None and self._t2file == None:
-            logger.warn("Please load the data first", "The data is invalid/missing")
+        if self._t1file is None and self._t2file is None:
+            logger.warning("Please load the data first", "The data is invalid/missing")
             return
 
-        if self._t1file != None and self._t2file != None:
+        if self._t1file is not None and self._t2file is not None:
             self._t1 = ants.image_read(self._t1file)
             self._t2 = ants.image_read(self._t2file)
             self._icbm152 = ants.image_read(self._mni)
@@ -118,7 +118,7 @@ class noelImageProcessor:
     def __register_to_MNI_space(self):
         logger.info("registration to MNI template space")
         print("registration to MNI template space")
-        if self._t1file != None and self._t2file != None:
+        if self._t1file is not None and self._t2file is not None:
             self._t1_reg = ants.registration(
                 fixed=self._icbm152,
                 moving=self._t1,
@@ -147,14 +147,14 @@ class noelImageProcessor:
                 ants.read_transform(self._t1_reg["fwdtransforms"][0]),
                 os.path.join(
                     xfmdir,
-                    self._id + "_from-T1w_to-MNI152NLin2009aSym_mode-image_xfm.mat",
+                    self._id + "_from-T1w_to-MNI152_mode-image_xfm.mat",
                 ),
             )
             ants.write_transform(
                 ants.read_transform(self._t2_reg["fwdtransforms"][0]),
                 os.path.join(
                     xfmdir,
-                    self._id + "_from-FLAIR_to-MNI152NLin2009aSym_mode-image_xfm.mat",
+                    self._id + "_from-FLAIR_to-MNI152_mode-image_xfm.mat",
                 ),
             )
             # self._t2_reg = ants.apply_transforms(fixed = self._t1_reg['warpedmovout'], moving = self._t2, transformlist = self._t1_reg['fwdtransforms'])
@@ -166,7 +166,7 @@ class noelImageProcessor:
             "performing {} bias correction".format("N3" if self._usen3 else "N4")
         )
         print("performing {} bias correction".format("N3" if self._usen3 else "N4"))
-        if self._t1file != None and self._t2file != None:
+        if self._t1file is not None and self._t2file is not None:
             if self._usen3:
                 self._t1_n4 = (
                     ants.iMath(
@@ -202,10 +202,10 @@ class noelImageProcessor:
                     * 100
                 )
             self._t1regfile = os.path.join(
-                self._outputdir, self._id + "_space-MNI152_T1w_final.nii.gz"
+                self._outputdir, self._id + "_space-MNI152_T1w.nii.gz"
             )
             self._t2regfile = os.path.join(
-                self._outputdir, self._id + "_space-MNI152_FLAIR_final.nii.gz"
+                self._outputdir, self._id + "_space-MNI152_FLAIR.nii.gz"
             )
             ants.image_write(self._t1_n4, self._t1regfile)
             ants.image_write(self._t2_n4, self._t2regfile)
@@ -259,7 +259,7 @@ class noelImageProcessor:
         else:
             logger.info("performing brain extraction using deepMask")
             print("performing brain extraction using deepMask")
-            if self._t1file != None and self._t2file != None:
+            if self._t1file is not None and self._t2file is not None:
                 if self._preprocess:
                     mask = deepMask(
                         self._args,
@@ -271,8 +271,8 @@ class noelImageProcessor:
                         self._t2regfile,
                     )
                     self._mask = self._t1_n4.new_image_like(mask)
-                    ants.image_write(self._t1_n4 * self._mask, self._t1brainfile)
-                    ants.image_write(self._t2_n4 * self._mask, self._t2brainfile)
+                    self._t1_brain = self._t1_n4 * self._mask
+                    self._t2_brain = self._t2_n4 * self._mask
                 else:
                     mask = deepMask(
                         self._args,
@@ -284,8 +284,10 @@ class noelImageProcessor:
                         self._t2file,
                     )
                     self._mask = self._t1.new_image_like(mask)
-                    ants.image_write(self._t1 * self._mask, self._t1brainfile)
-                    ants.image_write(self._t2 * self._mask, self._t2brainfile)
+                    self._t1_brain = self._t1 * self._mask
+                    self._t2_brain = self._t2 * self._mask
+                ants.image_write(self._t1_brain, self._t1brainfile)
+                ants.image_write(self._t2_brain, self._t2brainfile)
 
         # Generate BIDS metadata for the output files
         self.__generate_bids_metadata()
@@ -308,7 +310,7 @@ class noelImageProcessor:
                 if self._preprocess:
                     processing_steps.extend(
                         [
-                            "Registration to MNI152NLin2009aSym template space using ANTs",
+                            "Registration to MNI152 template space using ANTs",
                             "N3 bias field correction using ANTs",
                         ]
                     )
@@ -336,7 +338,7 @@ class noelImageProcessor:
                     original_t1_file=self._t1file,
                     original_t2_file=self._t2file,
                     processing_steps=processing_steps,
-                    space="MNI152NLin2009aSym" if self._preprocess else "native",
+                    space="MNI152" if self._preprocess else "native",
                 )
 
                 logger.info("BIDS metadata generation completed successfully")
@@ -360,19 +362,18 @@ class noelImageProcessor:
         )
         print("apply transforms to project outputs back to the native input space")
         self._t1_native = apply_transform(
-            self._mask, self._t1, self._t1_reg["fwdtransforms"][0], invert_xfrm=True
+            self._t1_brain, self._t1, self._t1_reg["fwdtransforms"][0], invert_xfrm=True
         )
         self._t2_native = apply_transform(
-            self._mask, self._t2, self._t2_reg["fwdtransforms"][0], invert_xfrm=True
+            self._t2_brain, self._t2, self._t2_reg["fwdtransforms"][0], invert_xfrm=True
         )
 
-        mask_suffix = "_brain_mask_native.nii.gz"
-        # write skull-stripped versions of the brain mask in native space
+        # write skull-stripped versions of the brain in native space
         ants.image_write(
-            self._t1_native, self._t1brainfile.replace(self._outsuffix, mask_suffix)
+            self._t1_native, self._t1brainfile.replace("MNI152", "orig")
         )
         ants.image_write(
-            self._t2_native, self._t2brainfile.replace(self._outsuffix, mask_suffix)
+            self._t2_native, self._t2brainfile.replace("MNI152", "orig")
         )
 
     def __generate_QC_maps(self):
@@ -380,7 +381,7 @@ class noelImageProcessor:
         qcdir = os.path.join(self._args.tmpdir, "qc")
         if not os.path.exists(qcdir):
             os.makedirs(qcdir)
-        if self._t1file != None and self._t2file != None:
+        if self._t1file is not None and self._t2file is not None:
             self._icbm152.plot(
                 overlay=self._t1,
                 overlay_alpha=0.5,
@@ -494,28 +495,9 @@ class noelImageProcessor:
         _move_suffix = {
             "_denseCrf3dProbMapClass1.nii.gz",
             "_denseCrf3dProbMapClass0.nii.gz",
-            "_space-orig_label-brain_probseg.nii.gz",
         }
-        _rename_suffix = "_space-MNI152_label-brain_dseg.nii.gz"
-        # _final_suffix = "_final.nii.gz"
-        _native_suffix = "_native.nii.gz"
 
         for file in os.listdir(self._outputdir):
-            if file.endswith(_rename_suffix):
-                src = os.path.join(self._outputdir, file)
-                dst = os.path.join(
-                    self._outputdir,
-                    file.replace(_rename_suffix, "_brain_mask_final.nii.gz"),
-                )
-                os.renames(src, dst)
-            if file.endswith(_native_suffix):
-                src = os.path.join(self._outputdir, file)
-                dst = os.path.join(self._outputdir, "native", file)
-                os.renames(src, dst)
-            # if file.endswith(_final_suffix):
-            #     src = os.path.join(self._outputdir, file)
-            #     dst = os.path.join(self._outputdir, "final", file)
-            #     os.renames(src, dst)
             for _suffix in _move_suffix:
                 if file.endswith(_suffix):
                     src = os.path.join(self._outputdir, file)
@@ -562,9 +544,7 @@ class noelImageProcessor:
 
         self.__organize_and_cleanup()
         end = time.time()
-        print(
-            f"pipeline processing time elapsed: {np.round(end - start, 1)} seconds"
-        )
+        print(f"pipeline processing time elapsed: {np.round(end - start, 1)} seconds")
         logger.info(
             f"pipeline processing time elapsed: {np.round(end - start, 1)} seconds"
         )

@@ -1,4 +1,7 @@
-import os, random, string
+import os
+import random
+import string
+
 from ants import apply_ants_transform_to_image, image_write, read_transform
 
 

@@ -57,7 +57,7 @@ def main():
         id=sys.argv[1],
         t1=args.t1,
         t2=args.t2,
-        output_suffix="_brain_final.nii.gz",
+        output_suffix="_brain.nii.gz",
         output_dir=args.outdir,
         template=template,
         usen3=True,
