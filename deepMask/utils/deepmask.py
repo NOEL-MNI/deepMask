@@ -1,21 +1,38 @@
 import fileinput
-import nibabel as nib
-import numpy as np
 import os
 import re
 import subprocess
 import time
-import torch
 
+import nibabel as nib
+import numpy as np
+import torch
 from nibabel import load as load_nii
 from skimage import transform as skt
 from sklearn.utils import class_weight
 from torch.autograd import Variable
 
 
-def deepMask(args, model, id, t1w_np, t2w_np, t1w_fname, t2w_fname, nifti=True):
+def deepMask(
+    args,
+    model,
+    id,
+    t1w_np,
+    t2w_np,
+    t1w_fname,
+    t2w_fname,
+    nifti=True,
+    return_paths=False,
+):
     dst = args.outdir
     case_id = id
+
+    # probablity segmentation and discrete segmentation output filenames
+    probseg = case_id + "_space-MNI152_desc-deepMask_probseg.nii.gz"
+    probseg_path = os.path.join(dst, probseg)
+
+    dseg = case_id + "_space-MNI152_desc-deepMask_dseg.nii.gz"
+    dseg_path = os.path.join(dst, dseg)
 
     model.eval()
 
@@ -37,7 +54,7 @@ def deepMask(args, model, id, t1w_np, t2w_np, t1w_fname, t2w_fname, nifti=True):
     output = output.cpu()
     output = output.data.numpy()
 
-    print("save {}".format(case_id))
+    print(f"save {case_id}")
     if not os.path.exists(os.path.join(dst)):
         os.makedirs(os.path.join(dst), exist_ok=True)
 
@@ -52,11 +69,11 @@ def deepMask(args, model, id, t1w_np, t2w_np, t1w_fname, t2w_fname, nifti=True):
             anti_aliasing=True,
         )
         nii_out = nib.Nifti1Image(output, affine, header)
-        nii_out.to_filename(os.path.join(dst, case_id + "_vnet_maskpred.nii.gz"))
+        nii_out.to_filename(probseg_path)
 
     elapsed_time = time.time() - start_time
     print("=" * 70)
-    print("=> inference time: {} seconds".format(round(elapsed_time, 2)))
+    print(f"=> inference time: {round(elapsed_time, 2)} seconds")
     print("=" * 70)
 
     # config = './utils/dense3dCrf/config_densecrf.txt'
@@ -71,16 +88,18 @@ def deepMask(args, model, id, t1w_np, t2w_np, t1w_fname, t2w_fname, nifti=True):
         out_shape,
         config,
         dst,
-        os.path.join(dst, case_id + "_vnet_maskpred.nii.gz"),
+        os.path.join(probseg_path),
     )
     elapsed_time = time.time() - start_time
     print("=" * 70)
-    print("=> dense 3D-CRF inference time: {} seconds".format(round(elapsed_time, 2)))
+    print(f"=> dense 3D-CRF inference time: {round(elapsed_time, 2)} seconds")
     print("=" * 70)
 
-    fname = os.path.join(dst, case_id + "_denseCrf3dSegmMap.nii.gz")
-    seg_map = load_nii(fname).get_fdata()
-    return seg_map
+    seg_map = load_nii(dseg_path).get_fdata()
+    if return_paths:
+        return seg_map, (probseg_path, dseg_path)
+    else:
+        return seg_map
 
 
 def normalize_resize_to_tensor(t1w_np, t2w_np, args):
@@ -134,8 +153,8 @@ def denseCRF(id, t1, t2, input_shape, config, out_dir, pred_labels):
 
 def datestr():
     now = time.gmtime()
-    return "{}{:02}{:02}_{:02}{:02}".format(
-        now.tm_year, now.tm_mon, now.tm_mday, now.tm_hour, now.tm_min
+    return (
+        f"{now.tm_year}{now.tm_mon:02}{now.tm_mday:02}_{now.tm_hour:02}{now.tm_min:02}"
     )
 
 
@@ -159,7 +178,6 @@ def compute_weights(labels, binary=False):
 
 
 def dice_gross(image, label, empty_score=1.0):
-
     image = (image > 0).astype(np.int_)
     label = (label > 0).astype(np.int_)
 
@@ -168,9 +186,7 @@ def dice_gross(image, label, empty_score=1.0):
 
     if image.shape != label.shape:
         raise ValueError(
-            "Shape mismatch: image {0} and label {1} must have the same shape.".format(
-                image.shape, label.shape
-            )
+            f"Shape mismatch: image {image.shape} and label {label.shape} must have the same shape."
         )
 
     im_sum = image.sum() + label.sum()

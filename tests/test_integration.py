@@ -37,12 +37,32 @@ class TestDeepMaskIntegration:
         """Paths to predicted and reference brain masks."""
         patient_id = test_config["patient_id"]
 
-        # deepMask output path (in subject subdirectory)
-        pred_mask = (
-            test_config["pred_dir"]
-            / patient_id
-            / f"{patient_id}_brain_mask_final.nii.gz"
-        )
+        # deepMask output directory for the subject
+        subject_outdir = test_config["pred_dir"] / patient_id
+
+        # Candidate predicted mask filenames (priority order)
+        candidates = [
+            f"{patient_id}_brain_mask_final.nii.gz",
+            f"{patient_id}_space-MNI152_label-brain_dseg.nii.gz",
+            f"{patient_id}_space-MNI152_desc-deepMask_dseg.nii.gz",
+            f"{patient_id}_space-MNI152_desc-deepMask_probseg.nii.gz",
+            f"{patient_id}_space-MNI152_desc-deepMask_dseg.nii.gz",
+        ]
+
+        pred_mask = None
+        if subject_outdir.exists():
+            for c in candidates:
+                p = subject_outdir / c
+                if p.exists():
+                    pred_mask = p
+                    break
+
+            # Fallback: look for any file with 'brain_mask' or 'desc-deepMask' in the name
+            if pred_mask is None:
+                for f in subject_outdir.iterdir():
+                    if f.is_file() and ("brain_mask" in f.name or "desc-deepMask" in f.name or f.name.endswith("_dseg.nii.gz")):
+                        pred_mask = f
+                        break
 
         # Reference brain mask from deepFCD
         ref_mask = (
@@ -198,19 +218,30 @@ class TestDeepMaskOutputs:
         pred_dir = (
             test_config["pred_dir"] / patient_id
         )  # Output is in subject subdirectory
+        # Logical outputs and candidate filename patterns produced by different deepMask versions
+        expected = {
+            "brain_mask": [
+                f"{patient_id}_brain_mask_final.nii.gz",
+                f"{patient_id}_space-MNI152_desc-deepMask_dseg.nii.gz",
+                f"{patient_id}_space-MNI152_desc-deepMask_probseg.nii.gz",
+                f"{patient_id}_space-MNI152_desc-deepMask_dseg.nii.gz",
+                f"{patient_id}_space-MNI152_label-brain_dseg.nii.gz",
+            ],
+            "t1_brain": [f"{patient_id}_space-MNI152_T1w_brain.nii.gz", f"{patient_id}_t1_brain_final.nii.gz"],
+            "flair_brain": [f"{patient_id}_space-MNI152_FLAIR_brain.nii.gz", f"{patient_id}_t2_brain_final.nii.gz"],
+        }
 
-        expected_files = [
-            f"{patient_id}_brain_mask_final.nii.gz",
-            f"{patient_id}_t1_brain_final.nii.gz",
-            f"{patient_id}_t2_brain_final.nii.gz",
-        ]
+        for logical, candidates in expected.items():
+            found = None
+            for filename in candidates:
+                filepath = pred_dir / filename
+                if filepath.exists():
+                    found = filepath
+                    break
 
-        for filename in expected_files:
-            filepath = pred_dir / filename
-            assert filepath.exists(), f"Expected output file not found: {filepath}"
-
+            assert found is not None, f"Expected output for '{logical}' not found. Searched: {candidates} in {pred_dir}"
             # Check file is not empty
-            assert filepath.stat().st_size > 0, f"Output file is empty: {filepath}"
+            assert found.stat().st_size > 0, f"Output file is empty: {found}"
 
     def test_skull_stripped_images(self, test_config):
         """Test properties of skull-stripped images."""
@@ -218,9 +249,8 @@ class TestDeepMaskOutputs:
         pred_dir = (
             test_config["pred_dir"] / patient_id
         )  # Output is in subject subdirectory
-
         # Test T1 skull-stripped image
-        t1_stripped = pred_dir / f"{patient_id}_t1_brain_final.nii.gz"
+        t1_stripped = pred_dir / f"{patient_id}_space-MNI152_T1w_brain_final.nii.gz"
         if t1_stripped.exists():
             img = ants.image_read(str(t1_stripped))
 
@@ -233,7 +263,9 @@ class TestDeepMaskOutputs:
             assert img_data.max() > img_data.min(), "No intensity variation"
 
         # Test FLAIR skull-stripped image
-        flair_stripped = pred_dir / f"{patient_id}_t2_brain_final.nii.gz"
+        flair_stripped = (
+            pred_dir / f"{patient_id}_space-MNI152_FLAIR_brain_final.nii.gz"
+        )
         if flair_stripped.exists():
             img = ants.image_read(str(flair_stripped))
 

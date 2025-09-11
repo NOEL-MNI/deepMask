@@ -95,7 +95,7 @@
 
 # prefixForOutputSegmentationMap: Essentially the filename for the resulting segmentation map (default is denseCrf3dOutputSegm). Will be saved as a .nii.gz automatically.
 -prefixForOutputSegmentationMap
-<ID_PLACEHOLDER>_denseCrf3dSegmMap
+<ID_PLACEHOLDER>_space-MNI152_desc-deepMask_dseg
 
 # prefixForOutputProbabilityMaps: Prefix of the filenames with which to save the resulting probability maps (default is denseCrf3dProbMapClass).
 # Each probability map will be saved as "prefix" + numberOfClass + ".nii.gz" automatically.
